@@ -48,7 +48,7 @@ sapplyCompass_variations = ['https://sapplyvalues.github.io/results.html?right='
 def connectMongo():
     cluster = MongoClient(mongoPass)
     dataBased = cluster['dataBased']
-    return dataBased['users']
+    return dataBased['test']
 
 
 

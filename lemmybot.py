@@ -1,6 +1,4 @@
 from pythorhead import Lemmy
-from pythorhead.types import ListingType, SortType
-from pythorhead.post import Post
 import os
 from dotenv import load_dotenv
 
@@ -18,14 +16,13 @@ from backupDrive import backupDataBased
 load_dotenv()
 username = os.environ.get('USER_NAME')
 password = os.environ.get('PASSWORD')
-lemmy = Lemmy("https://forum.basedcount.com")
+lemmy = Lemmy("https://lemmy.basedcount.com")
 lemmy.log_in(username, password)
-community_id = 2 # PCM
-post = Post()
+community_id = lemmy.discover_community("pcm")
 
 counted_comments = []
 
-version = 'Bot v2.19.1.LEMMY'
+version = 'Bot v2.19.2.LEMMY'
 infoMessage = 'I am a bot created to keep track of how based users are. '\
 'Check out the [FAQ](https://reddit.com/r/basedcount_bot/comments/iwhkcg/basedcount_bot_info_and_faq/). '\
 'I also track user [pills](https://reddit.com/r/basedcount_bot/comments/l23lwe/basedcount_bot_now_tracks_user_pills/).\n\n'\
@@ -67,9 +64,6 @@ myBasedCount_Variations = ['/mybasedcount']
 basedCountUser_Variations = ['/basedcount']
 mostBased_Variations = ['/mostbased']
 
-# Prepare bot and backup databased on restart
-time.sleep(10)
-backupDataBased()
 run = True
 
 
@@ -137,7 +131,14 @@ def readComments():
     try:
         print('Searching...')
         
-        comments = lemmy.post.get_latest_comments(community_id=2, max_depth=10)
+        posts = lemmy.post.list(community_id=community_id, limit=1)
+        print("Post Name: " + posts[0]['post']['name'])
+        print("Post Author: " + str(posts[0]['post']['creator_id']))
+        print("Post ID: " + str(posts[0]['post']['id']))
+        comments = lemmy.comment.list(community_id=community_id, post_id=posts[0]['post']['id'], max_depth=30)
+        print("Comment Body: " + comments[0]['comment']['content'])
+        print("Comment Author: " + comments[0]['creator']['actor_id'])
+        print("Comment ID: " + str(comments[0]['comment']['id']))
 
         # Weird check to see if Lemmy actually sent a comments list
         if "comments" in comments:
@@ -332,7 +333,7 @@ def closeBot():
 	#sendCheatReport()
 	print('Shutdown complete.')
 	exit()
-
+main()
 
 #while run:
 	#main()
