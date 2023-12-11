@@ -1,6 +1,7 @@
 passwords.py
+async_lemmy_test.py
 creds.json
-__pycache__/*
+__pycache__
 venv
 *.json
 *.ipynb

@@ -1,6 +1,7 @@
 aioschedule
 asyncpraw
 black
+cachetools
 colorlog
 google-api-python-client
 google-auth-httplib2
@@ -8,8 +9,11 @@ google-auth-oauthlib
 motor
 mypy
 pip-tools
+pyright
 pre-commit
 python-dotenv
+ruff
+types-cachetools
 types-PyYAML
 types-aiofiles
 types-ujson
