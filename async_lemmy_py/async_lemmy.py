@@ -17,7 +17,8 @@ class AsyncLemmyPy:
     :param str base_url: The base URL of the Lemmy instance.
     :param str username: The username for authentication.
     :param str password: The password for authentication.
-    :ivar RequestBuilder request_builder: An instance of RequestBuilder for building API requests.
+
+    :var RequestBuilder request_builder: An instance of RequestBuilder for building API requests.
 
     """
 
@@ -45,16 +46,17 @@ class AsyncLemmyPy:
         """Exit the asynchronous context and close the request builder."""
         await self.request_builder.close()
 
-    async def stream_comments(self) -> AsyncIterator[Comment]:
+    async def stream_comments(self, *, skip_existing: bool = True) -> AsyncIterator[Comment]:
         """Asynchronously stream comments from a Lemmy community.
 
-        :yields: A Comment object representing a comment from the Lemmy community.
         :rtype: Comment
+
+        :yields: A Comment object representing a comment from the Lemmy community.
 
         """
         exponential_counter = ExponentialCounter(max_counter=16)
         seen_comments: Cache[int, Comment] = Cache(maxsize=600)
-        skip_first = True
+        skip_first = skip_existing
         found = False
 
         while True:
@@ -62,12 +64,12 @@ class AsyncLemmyPy:
                 "comment/list", params={"type_": "Local", "sort": "New", "max_depth": 8, "page": 1, "community_id": 2, "community_name": "pcm"}
             )
 
-            for raw_comment in comments.get("comments", []):
-                comment = Comment.from_dict(raw_comment)
-                if comment.id in seen_comments:
+            for raw_comment in reversed(comments.get("comments", [])):
+                comment = Comment.from_dict(comment_view=raw_comment, request_builder=self.request_builder)
+                if comment.comment_id in seen_comments:
                     continue
                 found = True
-                seen_comments.update({comment.id: comment})
+                seen_comments.update({comment.comment_id: comment})
                 if not skip_first:
                     yield comment
 
