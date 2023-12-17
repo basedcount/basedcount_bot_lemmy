@@ -1,51 +1,72 @@
-from dataclasses import dataclass
 from datetime import datetime
+from typing import Self, Any
 
 from async_lemmy_py.models.community import Community
 from async_lemmy_py.models.post import Post
 from async_lemmy_py.models.user import User
-from typing import Self, cast
+from async_lemmy_py.request_builder import RequestBuilder
 
 
-@dataclass
 class Comment:
-    id: int
-    creator_id: int
-    post_id: int
-    content: str
-    removed: bool
-    published: datetime
-    deleted: bool
-    ap_id: str
-    local: bool
-    path: str
-    distinguished: bool
-    language_id: int
-    input_dict: dict[str, str | int | bool]
+    """This class represents a lemmy comment."""
 
-    post: Post
-    community: Community
-    user: User
+    def __init__(
+        self,
+        request_builder: RequestBuilder,
+        post: dict[str, Any],
+        community: dict[str, Any],
+        user: dict[str, Any],
+        comment_dict: dict[str, Any],
+    ) -> None:
+        self.request_builder = request_builder
+        self.post: Post = Post.from_dict(post, request_builder)
+        self.community: Community = Community.from_dict(community)
+        self.user: User = User.from_dict(user)
+
+        # Comment Data
+        self.ap_id: str = comment_dict.get("ap_id", "")
+        self.comment_id: int = comment_dict.get("id", -1)
+        self.content: str = comment_dict.get("content", "")
+        self.creator_id: int = comment_dict.get("creator_id", -1)
+        self.deleted: bool = comment_dict.get("deleted", False)
+        self.distinguished: bool = comment_dict.get("distinguished", False)
+        self.language_id: int = comment_dict.get("language_id", -1)
+        self.local: bool = comment_dict.get("local", False)
+        self.path: str = comment_dict.get("path", "0.0")
+        self.post_id: int = comment_dict.get("post_id", -1)
+        self.published: datetime = datetime.fromisoformat(comment_dict.get("published", "1970-01-01T00:00:00Z"))
+        self.removed: bool = comment_dict.get("removed", False)
+        self.updated: datetime = datetime.fromisoformat(comment_dict.get("updated", "1970-01-01T00:00:00Z"))
 
     @classmethod
-    def from_dict(cls, data: dict[str, dict[str, str | int | bool]]) -> Self:
-        comment_data = data["comment"]
-        published_datetime = datetime.fromisoformat(cast(str, comment_data.get("published", "1969-12-31T19:00:00")))
+    async def from_id(cls, comment_id: int, request_builder: RequestBuilder) -> Self:
+        comment_data = await request_builder.get("comment", params={"id": comment_id})
+        return cls.from_dict(comment_view=comment_data["comment_view"], request_builder=request_builder)
+
+    @classmethod
+    def from_dict(cls, *, comment_view: dict[str, Any], request_builder: RequestBuilder) -> Self:
+        comment_dict = comment_view["comment"]
         return cls(
-            id=cast(int, comment_data.get("id", 0)),
-            creator_id=cast(int, comment_data.get("creator_id", 0)),
-            post_id=cast(int, comment_data.get("post_id", 0)),
-            content=cast(str, comment_data.get("content", "")),
-            removed=cast(bool, comment_data.get("removed", False)),
-            published=published_datetime,
-            deleted=cast(bool, comment_data.get("deleted", False)),
-            ap_id=cast(str, comment_data.get("ap_id", "")),
-            local=cast(bool, comment_data.get("local", False)),
-            path=cast(str, comment_data.get("path", "")),
-            distinguished=cast(bool, comment_data.get("distinguished", False)),
-            language_id=cast(int, comment_data.get("language_id", 0)),
-            input_dict=comment_data,
-            post=Post.from_dict(data["post"]),
-            community=Community.from_dict(data["community"]),
-            user=User.from_dict(data["creator"]),
+            request_builder=request_builder,
+            post=comment_view["post"],
+            community=comment_view["community"],
+            user=comment_view["creator"],
+            comment_dict=comment_dict,
         )
+
+    async def parent(self) -> Self | Post:
+        parent_ids = self.path.split(".")
+        parent_id = int(parent_ids[-2])
+        if parent_id == 0 or len(parent_ids) <= 1:
+            return await Post.from_id(self.post_id, self.request_builder)
+        else:
+            return await Comment.from_id(parent_id, self.request_builder)
+
+    async def reply(self, response: str) -> None:
+        payload = {
+            "content": response,
+            "post_id": self.post_id,
+            "parent_id": self.comment_id,
+            "language_id": self.language_id,
+        }
+        await self.request_builder.post("comment", json=payload)
