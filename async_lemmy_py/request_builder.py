@@ -75,9 +75,9 @@ class RequestBuilder:
         """
         url: str = f"{self.base_url}/api/v3/{endpoint}"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        params_with_auth = {"auth": self.jwt_token} if params is None else {**params, "auth": self.jwt_token}
+        json_with_auth = {"auth": self.jwt_token} if json is None else {**json, "auth": self.jwt_token}
 
-        async with self.client_session.post(url, headers=headers, params=params_with_auth, data=data, json=json) as resp:
+        async with self.client_session.post(url, headers=headers, params=params, data=data, json=json_with_auth) as resp:
             return await self._handle_response(resp)
 
     async def _handle_response(self, resp: ClientResponse) -> dict[Any, Any]:
@@ -87,18 +87,18 @@ class RequestBuilder:
 
         :returns: JSON response from the server.
 
-        :raises: If the HTTP response status code indicates an error (not in the 2xx range).
+        :raises ClientResponseError: If the HTTP response status code indicates an error (not in the 2xx range).
 
         """
-        data: dict[Any, Any] = await resp.json()
 
         if resp.status >= 300:
             raise ClientResponseError(
                 request_info=resp.request_info,
                 history=resp.history,
                 status=resp.status,
-                message=f"Request failed with status {resp.status}: {data}",
+                message=f"Request failed with status {resp.status}: {resp.reason}",
                 headers=resp.headers,
             )
 
+        data: dict[Any, Any] = await resp.json()
         return data
