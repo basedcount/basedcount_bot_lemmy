@@ -16,7 +16,7 @@ basedcount_bot_lemmy is a Lemmy bot that keeps track of users on the PCM communi
 
 ## FAQ
 
-You can find more information and FAQs about the bot on the PCM community page on Lemmy.
+You can find more information and FAQs about the bot on https://basedcount.com/.
 
 ## Contributors
 
