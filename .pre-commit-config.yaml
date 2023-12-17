@@ -7,10 +7,11 @@ repos:
         exclude: "docs"
 
   - repo: https://github.com/LilSpazJoekp/docstrfmt
+    rev: v1.6.1
     hooks:
       - id: docstrfmt
-        require_serial: true
-    rev: v1.6.1
+        args:
+          - "-l 160"
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
