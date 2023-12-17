@@ -1,5 +1,5 @@
+aiofiles
 aioschedule
-asyncpraw
 black
 cachetools
 colorlog
