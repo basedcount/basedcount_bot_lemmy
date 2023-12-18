@@ -10,8 +10,6 @@ from typing import Optional
 
 import aiohttp
 from aiohttp import ClientSession
-from asyncpraw import Reddit
-from asyncpraw.reddit import Redditor
 from colorlog import ColoredFormatter
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 
@@ -99,42 +97,6 @@ async def get_mongo_collection(collection_name: str, mongo_client: AsyncIOMotorC
 
     """
     return mongo_client[collection_name]
-
-
-@asynccontextmanager
-async def create_reddit_instance() -> Reddit:
-    """Creates Reddit instance and returns the object
-
-    :returns: Reddit instance object.
-
-    """
-    reddit = Reddit(
-        client_id=getenv("REDDIT_CLIENT_ID"),
-        client_secret=getenv("REDDIT_CLIENT_SECRET"),
-        password=getenv("REDDIT_PASSWORD"),
-        user_agent="BasedCount by CodapopKSP",
-        username=getenv("REDDIT_USERNAME"),
-    )
-
-    try:
-        yield reddit
-    finally:
-        await reddit.close()
-
-
-async def send_message_to_admin(message_subject: str, message_body: str, author_name: str, reddit: Reddit) -> None:
-    """Forwards the message to the bot admin specified in the environment variable
-
-    :param message_subject: Subject of message
-    :param message_body: Body of message
-    :param author_name: Sender name, useful when forwarding messages
-    :param reddit: Reddit Instance used to send message to Redditor
-
-    :returns: None
-
-    """
-    bot_admin: Redditor = await reddit.redditor(getenv("BOT_ADMIN"))
-    await bot_admin.message(subject=f"{message_subject} from {author_name}", message=message_body)
 
 
 def create_logger(logger_name: str) -> Logger:
