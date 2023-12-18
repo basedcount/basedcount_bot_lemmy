@@ -19,7 +19,7 @@ class Comment:
         comment_dict: dict[str, Any],
     ) -> None:
         self.request_builder = request_builder
-        self.post: Post = Post.from_dict(post, request_builder)
+        self.post: Post = Post.from_dict(post_view={"post": post, "community": community, "creator": user}, request_builder=request_builder)
         self.community: Community = Community.from_dict(community)
         self.user: User = User.from_dict(user)
 
