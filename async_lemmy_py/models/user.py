@@ -2,6 +2,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Self, Any
 
+from aiohttp import ClientSession
+
+
+@dataclass
+class UserFlair:
+    name: str
+    display_name: str
+    path: str
+    community_actor_id: str
+    mod_only: bool
+
 
 @dataclass
 class User:
@@ -34,3 +45,12 @@ class User:
             data_copy["published"] = datetime.fromisoformat(published_str)
 
         return cls(**data_copy)
+
+    async def get_flair(self) -> Optional[UserFlair]:
+        async with ClientSession() as session:
+            params = {"community_actor_id": "https://lemmy.basedcount.com/c/pcm", "user_actor_id": self.actor_id}
+            async with session.get("https://lemmy.basedcount.com/flair/api/v1/user", params=params) as resp:
+                data = await resp.json()
+                if data is None:
+                    return None
+                return UserFlair(**data)
