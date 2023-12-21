@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, Self, Any
 
 from aiohttp import ClientSession
+from click import Option
 
 
 @dataclass
@@ -23,9 +24,9 @@ class User:
     actor_id: str
     local: bool
     deleted: bool
-    admin: bool
     bot_account: bool
     instance_id: int
+    admin: Optional[bool] = None
     bio: Optional[str] = None
     inbox_url: Optional[str] = None
     matrix_user_id: Optional[str] = None
@@ -50,7 +51,7 @@ class User:
         async with ClientSession() as session:
             params = {"community_actor_id": "https://lemmy.basedcount.com/c/pcm", "user_actor_id": self.actor_id}
             async with session.get("https://lemmy.basedcount.com/flair/api/v1/user", params=params) as resp:
-                data = await resp.json()
-                if data is None:
+                if resp.status == 404:
                     return None
+                data = await resp.json()
                 return UserFlair(**data)
