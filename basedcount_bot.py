@@ -261,8 +261,7 @@ async def read_comments(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotor
             if reply_message is not None:
                 if await check_unsubscribed(parent_info.parent_actor_id, mongo_client):
                     continue
-                # await comment.reply(reply_message)
-                print(reply_message)
+                await comment.reply(reply_message)
         else:
             await bot_commands(comment, comment_body_lower, mongo_client=mongo_client)
 

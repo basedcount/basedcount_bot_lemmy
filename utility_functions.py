@@ -69,7 +69,7 @@ async def send_traceback_to_discord(exception_name: str, exception_message: str,
         return
 
     webhook = getenv("DISCORD_WEBHOOK", "deadass")
-    data = {"content": f"[{exception_name}: {exception_message}]({paste_bin_url})", "username": "BasedCountBot"}
+    data = {"content": f"[{exception_name}: {exception_message}]({paste_bin_url})", "username": "Lemmy_BasedCountBot"}
     async with ClientSession(headers={"Content-Type": "application/json"}) as session:
         async with session.post(url=webhook, data=json.dumps(data)):
             pass

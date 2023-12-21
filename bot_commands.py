@@ -13,7 +13,6 @@ import yaml
 from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorClient
 from pymongo import ReturnDocument
 
-from models.flairs import get_flair_name
 from models.ranks import rank_name, rank_message
 from models.user import User
 from utility_functions import get_mongo_collection, create_logger
@@ -30,7 +29,8 @@ async def find_or_create_user_profile(user_name: str, users_collection: AsyncIOM
     :returns: Dict object with user profile info
 
     """
-    profile: Optional[dict[str, Any]] = await users_collection.find_one({"name": re.compile(rf"^{user_name}$", re.I)})
+    query = {"$and": [{"name": re.compile(rf"^{user_name}$", re.I)}, {"is_lemmy": {"$exists": True, "$eq": True}}]}
+    profile: Optional[dict[str, Any]] = await users_collection.find_one(query)
     if profile is None:
         profile = await users_collection.find_one_and_update(
             {"name": user_name},
@@ -44,6 +44,7 @@ async def find_or_create_user_profile(user_name: str, users_collection: AsyncIOM
                     "basedTime": [],
                     "mergedAccounts": [],
                     "unsubscribed": False,
+                    "is_lemmy": True,
                 }
             },
             upsert=True,
@@ -52,43 +53,38 @@ async def find_or_create_user_profile(user_name: str, users_collection: AsyncIOM
     return profile
 
 
-async def based_and_pilled(
-    user_name: str, user_flair_id: str, user_flair_text: str, pill: Optional[dict[str, str | int]], mongo_client: AsyncIOMotorClient
-) -> Optional[str]:
+async def based_and_pilled(user_actor_id: str, flair_name: str, pill: Optional[dict[str, str | int]], mongo_client: AsyncIOMotorClient) -> Optional[str]:
     """Increments the based count and adds the pill to a user database in mongo
 
-    :param user_name: user whose based count/pill will be added.
-    :param user_flair_id: flair id of the user.
-    :param user_flair_text: flair text as it appears on Reddit
+    :param user_actor_id: user whose based count/pill will be added.
+    :param flair_name: flair of the user.
     :param pill: name of the pill that will be added.
     :param mongo_client: MongoDB Client used to get the collections.
 
     :returns: Comment response for the user when based count is 1, multiple of 5 and when they reach a new rank
 
     """
-    bot_commands_logger.info(f"based_and_pilled args: u/{user_name}, flair: {user_flair_id}, pill: {pill}")
+    bot_commands_logger.info(f"based_and_pilled args: u/{user_actor_id}, flair: {flair_name}, pill: {pill}")
     users_collection = await get_mongo_collection(collection_name="users", mongo_client=mongo_client)
-    profile = await find_or_create_user_profile(user_name, users_collection)
-    flair_name = await get_flair_name(user_flair_id) or user_flair_text
-    bot_commands_logger.info(f"Flair class: {user_flair_id} -> Flair name: {flair_name}")
+    profile = await find_or_create_user_profile(user_actor_id, users_collection)
     bot_commands_logger.info(f"Based Count before: {profile['count']}")
     await asyncio.gather(
-        add_based_count(user_name, flair_name, users_collection),
-        add_pills(user_name, pill, users_collection),
+        add_based_count(user_actor_id, flair_name, users_collection),
+        add_pills(user_actor_id, pill, users_collection),
     )
-    profile = await find_or_create_user_profile(user_name, users_collection)
+    profile = await find_or_create_user_profile(user_actor_id, users_collection)
     bot_commands_logger.info(f"Based Count: {profile['count']}")
 
     user = User.from_data(profile)
     all_based_counts = await user.get_all_accounts_based_count(users_collection)
     combined_based_count = sum(map(lambda x: x[1], all_based_counts))
     combined_pills = await user.combined_formatted_pills(users_collection)
-    combined_rank = await rank_name(combined_based_count, user_name)
+    combined_rank = await rank_name(combined_based_count, user_actor_id)
     rank_up = await rank_message(combined_based_count)
 
     if user.based_count == 1:
         return (
-            f"u/{user_name} is officially based! Their Based Count is now 1.\n\n"
+            f"u/{user_actor_id} is officially based! Their Based Count is now 1.\n\n"
             f"Rank: {combined_rank}\n\n"
             f"Pills: {combined_pills}\n\n"
             f"Compass: {user.format_compass()}\n\n"
@@ -98,15 +94,15 @@ async def based_and_pilled(
         if rank_up is not None:
             # Reply if user reaches a new rank
             return (
-                f"u/{user_name}'s Based Count has increased by 1. Their Based Count is now {user.based_count}.\n\n"
-                f"Congratulations, u/{user_name}! You have ranked up to {combined_rank}! {rank_up}\n\n"
+                f"u/{user_actor_id}'s Based Count has increased by 1. Their Based Count is now {user.based_count}.\n\n"
+                f"Congratulations, u/{user_actor_id}! You have ranked up to {combined_rank}! {rank_up}\n\n"
                 f"Pills: {combined_pills}\n\n"
                 f"Compass: {user.format_compass()}\n\n"
                 f"I am a bot. Reply /info for more info. Please join our [official pcm discord server](https://discord.gg/FyaJdAZjC4)."
             )
         # normal reply
         return (
-            f"u/{user_name}'s Based Count has increased by 1. Their Based Count is now {user.based_count}.\n\n"
+            f"u/{user_actor_id}'s Based Count has increased by 1. Their Based Count is now {user.based_count}.\n\n"
             f"Rank: {combined_rank}\n\n"
             f"Pills: {combined_pills}\n\n"
             f"Compass: {user.format_compass()}\n\n"
@@ -292,24 +288,24 @@ async def set_subscription(subscribe: bool, user_name: str, mongo_client: AsyncI
         return "Error: Please contact the mods."
 
 
-async def check_unsubscribed(username: str, mongo_client: AsyncIOMotorClient) -> bool:
+async def check_unsubscribed(user_actor_id: str, mongo_client: AsyncIOMotorClient) -> bool:
     """Check the value of the "unsubscribed" field for a user with the given username in a MongoDB collection.
 
     If the "unsubscribed" field is missing, add it to the user document and set its value to False.
 
-    :param username: The username to search for in the collection.
+    :param user_actor_id: The username to search for in the collection.
     :param mongo_client: A MotorAsyncIOMotorClient instance representing the MongoDB client.
 
     :returns: The value of the "unsubscribed" field for the user, or False if the user doesn't exist or the "unsubscribed" field is missing.
 
     """
     users_collection = await get_mongo_collection(collection_name="users", mongo_client=mongo_client)
-    profile = await users_collection.find_one({"name": username})
+    profile = await users_collection.find_one({"name": user_actor_id})
 
     if "unsubscribed" in profile:
         unsub: bool = profile["unsubscribed"]
         return unsub
     else:
         # If the "unsubscribed" field is missing, add it and set its value to False
-        await users_collection.update_one({"name": username}, {"$set": {"unsubscribed": False}})
+        await users_collection.update_one({"name": user_actor_id}, {"$set": {"unsubscribed": False}})
         return False
