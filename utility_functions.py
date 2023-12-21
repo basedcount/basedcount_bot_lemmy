@@ -6,12 +6,12 @@ from logging import getLogger, Logger, config
 from os import getenv
 from pathlib import Path
 from traceback import print_exc
-from typing import Optional
+from typing import AsyncGenerator, Optional
 
 import aiohttp
 from aiohttp import ClientSession
 from colorlog import ColoredFormatter
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
 
 Path("logs").mkdir(exist_ok=True)
 conf_file = Path("logging.conf")
@@ -76,7 +76,7 @@ async def send_traceback_to_discord(exception_name: str, exception_message: str,
 
 
 @asynccontextmanager
-async def get_mongo_client() -> AsyncIOMotorClient:
+async def get_databased() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
     """Returns the MongoDB AsyncIOMotorClient
 
     :returns: AsyncIOMotorClient object
@@ -90,13 +90,13 @@ async def get_mongo_client() -> AsyncIOMotorClient:
         cluster.close()
 
 
-async def get_mongo_collection(collection_name: str, mongo_client: AsyncIOMotorClient) -> AsyncIOMotorCollection:
+async def get_mongo_collection(collection_name: str, databased: AsyncIOMotorDatabase) -> AsyncIOMotorCollection:
     """Returns the user databased from dataBased Cluster from MongoDB
 
     :returns: Returns a Collection from Mongo DB
 
     """
-    return mongo_client[collection_name]
+    return databased[collection_name]
 
 
 def create_logger(logger_name: str) -> Logger:
@@ -111,3 +111,16 @@ def create_logger(logger_name: str) -> Logger:
         handler.setFormatter(ColoredFormatter(log_format))
 
     return getLogger(logger_name)
+
+
+def actor_id_to_user_mention(user_actor_id: str) -> str:
+    """Convert an actor ID to a user mention format.
+
+    :param str user_actor_id: The actor ID.
+
+    :returns: The user mention format.
+    :rtype: str
+
+    """
+    user_mention = f"[@{user_actor_id.split('/')[-1]}]({user_actor_id})"
+    return user_mention

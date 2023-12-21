@@ -14,39 +14,39 @@ class UserFlair:
     mod_only: bool
 
 
-@dataclass
 class User:
-    id: int
-    name: str
-    banned: bool
-    published: datetime
-    actor_id: str
-    local: bool
-    deleted: bool
-    bot_account: bool
-    instance_id: int
-    admin: Optional[bool] = None
-    bio: Optional[str] = None
-    inbox_url: Optional[str] = None
-    matrix_user_id: Optional[str] = None
-    display_name: Optional[str] = None
-    avatar: Optional[str] = None
-    ban_expires: Optional[str] = None
-    banner: Optional[str] = None
-    updated: Optional[str] = None
+    def __init__(self, user: dict[str, Any]):
+        self.actor_id = user.get("actor_id", "")
+        self.admin = user.get("admin")
+        self.avatar = user.get("avatar", "")
+        self.ban_expires = user.get("ban_expires", "")
+        self.banned = user.get("banned", False)
+        self.banner = user.get("banner", "")
+        self.bio = user.get("bio", "")
+        self.bot_account = user.get("bot_account", False)
+        self.deleted = user.get("deleted", False)
+        self.display_name = user.get("display_name", "")
+        self.id = user.get("id", -1)
+        self.inbox_url = user.get("inbox_url", "")
+        self.instance_id = user.get("instance_id", -1)
+        self.local = user.get("local", False)
+        self.matrix_user_id = user.get("matrix_user_id", "")
+        self.name = user.get("name", "")
+        self.published = datetime.fromisoformat(user.get("published", "1970-01-01T00:00:00Z"))
+        self.updated = datetime.fromisoformat(user.get("updated", "1970-01-01T00:00:00Z"))
 
     @classmethod
-    def from_dict(cls, data: dict[Any, Any]) -> Self:
-        data_copy = data.copy()
-
-        published_str = data_copy.get("published")
-
-        if published_str:
-            data_copy["published"] = datetime.fromisoformat(published_str)
-
-        return cls(**data_copy)
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        return cls(data)
 
     async def get_flair(self) -> Optional[UserFlair]:
+        """Retrieve user flair information from the Lemmy API.
+
+        :returns: An instance of UserFlair if the user has flair, else None.
+        :rtype: Optional[UserFlair]
+        :rtype: Awaitable[Optional[UserFlair]]
+
+        """
         async with ClientSession() as session:
             params = {"community_actor_id": "https://lemmy.basedcount.com/c/pcm", "user_actor_id": self.actor_id}
             async with session.get("https://lemmy.basedcount.com/flair/api/v1/user", params=params) as resp:

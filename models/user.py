@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from attrs import define, field
 from motor.motor_asyncio import AsyncIOMotorCollection
@@ -61,7 +61,7 @@ class User:
             self.sappy_values_type = f"Sapply: {sv_soc_type} | {sv_eco_type} | {sv_prog_type}"
 
     @classmethod
-    def from_data(cls, user_dict: dict[Any, Any]) -> User:
+    def from_data(cls, user_dict: Mapping[str, Any]) -> User:
         pills = [Pill.from_data(pill=pill, owner_name=user_dict["name"]) for pill in user_dict["pills"]]
         user_instance = cls(
             username=user_dict["name"],
@@ -98,11 +98,11 @@ class User:
         :returns: str object with pill count and link to website to view all the pills
 
         """
-        task_list = []
+        task_list: list[Any] = []
         for user_name in self.merged_accounts:
             task_list.append(user_collection.find_one({"name": user_name}))
 
-        pills = []
+        pills: list[Any] = []
         profile_list = await asyncio.gather(*task_list)
         for profile in profile_list:
             pills.extend(profile["pills"])
@@ -120,7 +120,7 @@ class User:
 
         """
 
-        task_list = []
+        task_list: list[Any] = []
         for user_name in self.merged_accounts:
             task_list.append(user_collection.find_one({"name": user_name}))
 

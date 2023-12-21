@@ -10,7 +10,7 @@ from typing import Awaitable, Callable, NamedTuple, Optional
 import aiofiles
 from aiohttp import ClientResponseError
 from dotenv import load_dotenv
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from yaml import safe_load
 
 from async_lemmy_py import AsyncLemmyPy
@@ -20,31 +20,31 @@ from async_lemmy_py.models.user import UserFlair
 from bot_commands import get_based_count, most_based, based_and_pilled, my_compass, remove_pill, add_to_based_history, set_subscription, check_unsubscribed
 from utility_functions import (
     create_logger,
-    get_mongo_client,
+    get_databased,
     send_traceback_to_discord,
 )
 
 load_dotenv()
 
 
-def exception_wrapper(func: Callable[[AsyncLemmyPy, AsyncIOMotorClient], Awaitable[None]]) -> Callable[[AsyncLemmyPy, AsyncIOMotorClient], Awaitable[None]]:
+def exception_wrapper(func: Callable[[AsyncLemmyPy, AsyncIOMotorDatabase], Awaitable[None]]) -> Callable[[AsyncLemmyPy, AsyncIOMotorDatabase], Awaitable[None]]:
     """Decorator to handle the exceptions and to ensure the code doesn't exit unexpectedly.
 
     :param func: function that needs to be called
 
     :returns: wrapper function
-    :rtype: Callable[[Reddit, AsyncIOMotorClient], Awaitable[None]]
+    :rtype: Callable[[Reddit, AsyncIOMotorDatabase], Awaitable[None]]
 
     """
 
-    async def wrapper(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotorClient) -> None:
+    async def wrapper(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotorDatabase) -> None:
         global cool_down_timer
 
         while True:
             try:
                 await func(lemmy_instance, mongo_client)
             except ClientResponseError as response_err_exc:
-                main_logger.exception("AsyncPrawcoreException", exc_info=True)
+                main_logger.exception("AsyncLemmyPyExpection", exc_info=True)
                 await send_traceback_to_discord(
                     exception_name=type(response_err_exc).__name__, exception_message=str(response_err_exc), exception_body=format_exc()
                 )
@@ -63,12 +63,12 @@ def exception_wrapper(func: Callable[[AsyncLemmyPy, AsyncIOMotorClient], Awaitab
     return wrapper
 
 
-async def bot_commands(command: Comment, command_body_lower: str, mongo_client: AsyncIOMotorClient) -> None:
+async def bot_commands(command: Comment, command_body_lower: str, databased: AsyncIOMotorDatabase) -> None:
     """Responsible for the basic based count bot commands
 
     :param command: Lemmy post that triggered the command, could be a message or comment
     :param command_body_lower: The body of that message or command
-    :param mongo_client: MongoDB Client used to get the collections
+    :param databased: MongoDB Client used to get the collections
 
     :returns: None
 
@@ -83,31 +83,31 @@ async def bot_commands(command: Comment, command_body_lower: str, mongo_client: 
             await command.reply(replies.get("info_message"))
 
     elif command_body_lower.startswith("/mybasedcount"):
-        my_based_count = await get_based_count(user_name=command.user.name, is_me=True, mongo_client=mongo_client)
+        my_based_count = await get_based_count(user_name=command.user.name, is_me=True, databased=databased)
         await command.reply(my_based_count)
 
     elif result := re.match(r"/basedcount\s*(u/)?([A-Za-z0-9_-]+)", command.content, re.IGNORECASE):
         user_name = result.group(2)
-        user_based_count = await get_based_count(user_name=user_name, is_me=False, mongo_client=mongo_client)
+        user_based_count = await get_based_count(user_name=user_name, is_me=False, databased=databased)
         await command.reply(user_based_count)
 
     elif command_body_lower.startswith("/mostbased"):
         await command.reply(await most_based())
 
     elif command_body_lower.startswith("/removepill"):
-        response = await remove_pill(user_name=command.user.name, pill=command_body_lower.replace("/removepill ", ""), mongo_client=mongo_client)
+        response = await remove_pill(user_name=command.user.name, pill=command_body_lower.replace("/removepill ", ""), databased=databased)
         await command.reply(response)
 
     elif command_body_lower.startswith("/mycompass"):
-        response = await my_compass(user_name=command.user.name, compass=command_body_lower.replace("/mycompass ", ""), mongo_client=mongo_client)
+        response = await my_compass(user_name=command.user.name, compass=command_body_lower.replace("/mycompass ", ""), databased=databased)
         await command.reply(response)
 
     elif command_body_lower.startswith("/unsubscribe"):
-        response = await set_subscription(subscribe=False, user_name=command.user.name, mongo_client=mongo_client)
+        response = await set_subscription(subscribe=False, user_name=command.user.name, databased=databased)
         await command.reply(response)
 
     elif command_body_lower.startswith("/subscribe"):
-        response = await set_subscription(subscribe=True, user_name=command.user.name, mongo_client=mongo_client)
+        response = await set_subscription(subscribe=True, user_name=command.user.name, databased=databased)
         await command.reply(response)
 
 
@@ -151,12 +151,12 @@ BASED_REGEX = re.compile(f"({'|'.join(BASED_VARIATION)})\\b(?!\\s*(on|off))", re
 PILL_REGEX = re.compile("(?<=(and|but))(.+)pilled", re.IGNORECASE)
 
 
-async def is_valid_comment(comment: Comment, parent_info: ParentInfo, mongo_client: AsyncIOMotorClient) -> bool:
+async def is_valid_comment(comment: Comment, parent_info: ParentInfo, databased: AsyncIOMotorDatabase) -> bool:
     """Runs checks for self based/pills, unflaired users, and cheating in general
 
     :param comment: Comment which triggered the bot command
     :param parent_info: The parent comment/submission info.
-    :param mongo_client: MongoDB Client used to get the collections
+    :param databased: MongoDB Client used to get the collections
 
     :returns: True if checks passed and False if checks failed
 
@@ -178,7 +178,7 @@ async def is_valid_comment(comment: Comment, parent_info: ParentInfo, mongo_clie
         return False
 
     # fire and forget background tasks
-    task = asyncio.create_task(add_to_based_history(comment.user.actor_id, parent_info.parent_actor_id, mongo_client=mongo_client))
+    task = asyncio.create_task(add_to_based_history(comment.user.actor_id, parent_info.parent_actor_id, databased=databased))
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
     return True
@@ -213,17 +213,17 @@ async def get_parent_info(comment: Comment | Post) -> ParentInfo:
 
 
 @exception_wrapper
-async def read_comments(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotorClient) -> None:
+async def read_comments(lemmy_instance: AsyncLemmyPy, databased: AsyncIOMotorDatabase) -> None:
     """Checks comments as they come on r/PoliticalCompassMemes and performs actions accordingly.
 
     :param lemmy_instance: The AsyncLemmyPy Instance. Used to make API calls.
-    :param mongo_client: MongoDB Client used to get the collections
+    :param databased: MongoDB Client used to get the collections
 
     :returns: Nothing is returned
 
     """
     main_logger.info(f"Logged into {lemmy_instance.request_builder.username} Account.")
-    async for comment in lemmy_instance.stream_comments(skip_existing=True):  # Comment
+    async for comment in lemmy_instance.stream_comments(skip_existing=False):  # Comment
         # Skips its own comments
         if comment.user.actor_id == "https://lemmy.basedcount.com/u/basedcount_bot":
             continue
@@ -236,7 +236,7 @@ async def read_comments(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotor
                 main_logger.warn("Parent Removed or Deleted")
                 continue
             # Skip Unflaired scums and low effort based
-            if not await is_valid_comment(comment, parent_info, mongo_client=mongo_client):
+            if not await is_valid_comment(comment, parent_info, databased=databased):
                 continue
             main_logger.info("Checks passed")
 
@@ -257,22 +257,22 @@ async def read_comments(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotor
                 parent_flair = "Unflaired"
             else:
                 parent_flair = parent_info.parent_flair.display_name
-            reply_message = await based_and_pilled(parent_info.parent_actor_id, parent_flair, pill, mongo_client=mongo_client)
+            reply_message = await based_and_pilled(parent_info.parent_actor_id, parent_flair, pill, databased=databased)
             if reply_message is not None:
-                if await check_unsubscribed(parent_info.parent_actor_id, mongo_client):
+                if await check_unsubscribed(parent_info.parent_actor_id, databased):
                     continue
                 await comment.reply(reply_message)
         else:
-            await bot_commands(comment, comment_body_lower, mongo_client=mongo_client)
+            await bot_commands(comment, comment_body_lower, databased=databased)
 
 
 async def main() -> None:
     async with (
-        get_mongo_client() as mongo_client,
+        get_databased() as databased,
         AsyncLemmyPy(base_url="https://lemmy.basedcount.com", username=getenv("LEMMY_USERNAME", "username"), password=getenv("LEMMY_PASSWORD", "pas")) as lemmy,
     ):
         await asyncio.gather(
-            read_comments(lemmy, mongo_client),
+            read_comments(lemmy, databased),
         )
 
 
