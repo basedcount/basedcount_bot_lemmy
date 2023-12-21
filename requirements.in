@@ -7,14 +7,15 @@ google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
 motor
+motor-types
 mypy
 pip-tools
-pyright
 pre-commit
+pyright
 python-dotenv
 ruff
+types-aiofiles
 types-cachetools
 types-PyYAML
-types-aiofiles
 types-ujson
 ujson
