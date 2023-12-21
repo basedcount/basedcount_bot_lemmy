@@ -161,15 +161,16 @@ async def is_valid_comment(comment: Comment, parent_info: ParentInfo, mongo_clie
     :returns: True if checks passed and False if checks failed
 
     """
-    main_logger.info(f"Based Comment: {comment.content!r} from: u/{comment.user.actor_id} to: u/{parent_info.parent_actor_id} <{parent_info.parent_flair}>")
+    main_logger.info(f"Based Comment: {comment.content!r} from: {comment.user.actor_id} to: {parent_info.parent_actor_id} <{parent_info.parent_flair}>")
     if parent_info.parent_actor_id.lower() in [comment.user.actor_id.lower(), "https://lemmy.basedcount.com/u/basedcount_bot"]:
         main_logger.info("Checks failed, self based or giving basedcount_bot based.")
         return False
 
     # check for unflaired users, the author_flair_text is empty str or None
     if parent_info.parent_flair is None:
-        main_logger.info("Checks failed, giving based to unflaired user.")
-        return False
+        main_logger.info("(Temp) Giving based to unflaired user.")
+        # TODO: Letting Unflaired give based temporarily
+        return True
 
     # Check if people aren't just giving each other low effort based
     if parent_info.parent_body.startswith(BASED_VARIATION) and len(parent_info.parent_body) < 50:
@@ -229,7 +230,11 @@ async def read_comments(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotor
 
         comment_body_lower = comment.content.lower()
         if re.match(BASED_REGEX, comment_body_lower.replace("\n", "")):
-            parent_info = await get_parent_info(comment)
+            try:
+                parent_info = await get_parent_info(comment)
+            except ClientResponseError:
+                main_logger.warn("Parent Removed or Deleted")
+                continue
             # Skip Unflaired scums and low effort based
             if not await is_valid_comment(comment, parent_info, mongo_client=mongo_client):
                 continue
@@ -248,12 +253,16 @@ async def read_comments(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotor
                         "amount": 1,
                     }
 
-            assert parent_info.parent_flair is not None
-            reply_message = await based_and_pilled(parent_info.parent_actor_id, parent_info.parent_flair.display_name, pill, mongo_client=mongo_client)
+            if parent_info.parent_flair is None:
+                parent_flair = "Unflaired"
+            else:
+                parent_flair = parent_info.parent_flair.display_name
+            reply_message = await based_and_pilled(parent_info.parent_actor_id, parent_flair, pill, mongo_client=mongo_client)
             if reply_message is not None:
                 if await check_unsubscribed(parent_info.parent_actor_id, mongo_client):
                     continue
-                await comment.reply(reply_message)
+                # await comment.reply(reply_message)
+                print(reply_message)
         else:
             await bot_commands(comment, comment_body_lower, mongo_client=mongo_client)
 

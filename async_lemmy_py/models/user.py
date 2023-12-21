@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Optional, Self, Any
 
 from aiohttp import ClientSession
-from click import Option
 
 
 @dataclass
