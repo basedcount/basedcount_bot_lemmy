@@ -53,4 +53,8 @@ class User:
                 if resp.status == 404:
                     return None
                 data = await resp.json()
+
+                # Nerd02 skill issue. If a user doesn't have a flair it should ideally return resp.status == 404. But instead it returns None.
+                if data is None:
+                    return None
                 return UserFlair(**data)
