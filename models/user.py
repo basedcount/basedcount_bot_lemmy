@@ -28,7 +28,7 @@ def quadrant_name(compass_value: str, side1: str, side2: str) -> str:
 
 @define(kw_only=True)
 class User:
-    username: str
+    user_actor_id: str
     based_count: int
     user_flair: str
     political_compass_values: tuple[str, str]
@@ -64,7 +64,7 @@ class User:
     def from_data(cls, user_dict: Mapping[str, Any]) -> User:
         pills = [Pill.from_data(pill=pill, owner_name=user_dict["name"]) for pill in user_dict["pills"]]
         user_instance = cls(
-            username=user_dict["name"],
+            user_actor_id=user_dict["name"],
             based_count=user_dict["count"],
             user_flair=user_dict["flair"],
             political_compass_values=user_dict["compass"],
@@ -109,7 +109,7 @@ class User:
 
         combined_pill_count = len(pills) + len(self.pills)
         pill_str = f"{combined_pill_count:,}" if combined_pill_count > 0 else "None"
-        return f"[{pill_str} | View pills](https://basedcount.com/u/{self.username}/)"
+        return f"[{pill_str} | View pills](https://basedcount.com/u/{self.user_actor_id}/)"
 
     async def get_all_accounts_based_count(self, user_collection: AsyncIOMotorCollection) -> list[tuple[str, int, int]]:
         """Gets the based count from all the all accounts (main + merged accounts)
@@ -124,7 +124,7 @@ class User:
         for user_name in self.merged_accounts:
             task_list.append(user_collection.find_one({"name": user_name}))
 
-        based_count_list = [(self.username, self.based_count, len(self.pills))]
+        based_count_list = [(self.user_actor_id, self.based_count, len(self.pills))]
         profile_list = await asyncio.gather(*task_list)
         for profile in profile_list:
             based_count_list.append((profile["name"], profile["count"], len(profile["pills"])))
