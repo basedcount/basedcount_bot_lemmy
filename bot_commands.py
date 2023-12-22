@@ -20,20 +20,20 @@ from utility_functions import get_mongo_collection, create_logger, actor_id_to_u
 bot_commands_logger = create_logger(__name__)
 
 
-async def find_or_create_user_profile(user_name: str, users_collection: AsyncIOMotorCollection) -> Mapping[str, Any]:
+async def find_or_create_user_profile(user_actor_id: str, users_collection: AsyncIOMotorCollection) -> Mapping[str, Any]:
     """Finds the user in the users_collection, or creates one if it doesn't exist using default values
 
-    :param user_name: The user whose profile to find or create
+    :param user_actor_id: The user whose profile to find or create
     :param users_collection: The collection in which the profile will be searched or inserted
 
     :returns: Dict object with user profile info
 
     """
-    query = {"$and": [{"name": re.compile(rf"^{user_name}$", re.I)}, {"is_lemmy": {"$exists": True, "$eq": True}}]}
+    query = {"$and": [{"name": re.compile(rf"^{user_actor_id}$", re.I)}, {"is_lemmy": {"$exists": True, "$eq": True}}]}
     profile = await users_collection.find_one(query)
     if profile is None:
         profile = await users_collection.find_one_and_update(
-            {"name": user_name},
+            {"name": user_actor_id},
             {
                 "$setOnInsert": {
                     "flair": "Unflaired",
@@ -112,23 +112,23 @@ async def based_and_pilled(user_actor_id: str, flair_name: str, pill: Optional[d
     return None
 
 
-async def add_based_count(user_name: str, flair_name: str, users_collection: AsyncIOMotorCollection) -> None:
+async def add_based_count(user_actor_id: str, flair_name: str, users_collection: AsyncIOMotorCollection) -> None:
     """Increases the based count of user by one
 
-    :param user_name: user whose based count will be increased
+    :param user_actor_id: user whose based count will be increased
     :param flair_name: flair of the user.
     :param users_collection: The collection in which the profile will be updated
 
     :returns: None
 
     """
-    await users_collection.update_one({"name": user_name}, {"$set": {"flair": flair_name}, "$inc": {"count": 1}, "$push": {"basedTime": int(time())}})
+    await users_collection.update_one({"name": user_actor_id}, {"$set": {"flair": flair_name}, "$inc": {"count": 1}, "$push": {"basedTime": int(time())}})
 
 
-async def add_pills(user_name: str, pill: Optional[dict[str, str | int]], users_collection: AsyncIOMotorCollection) -> None:
+async def add_pills(user_actor_id: str, pill: Optional[dict[str, str | int]], users_collection: AsyncIOMotorCollection) -> None:
     """Add the pill to the user database
 
-    :param user_name: The user's whose pill will be added
+    :param user_actor_id: The user's whose pill will be added
     :param pill: pill that will be added
     :param users_collection: The collection in which the profile will be updated
 
@@ -138,13 +138,13 @@ async def add_pills(user_name: str, pill: Optional[dict[str, str | int]], users_
     if pill is None:
         return None
 
-    await users_collection.update_one({"name": user_name, "pills.name": {"$ne": pill["name"]}}, {"$push": {"pills": pill}})
+    await users_collection.update_one({"name": user_actor_id, "pills.name": {"$ne": pill["name"]}}, {"$push": {"pills": pill}})
 
 
-async def add_to_based_history(user_name: str, parent_author: str, databased: AsyncIOMotorDatabase) -> None:
+async def add_to_based_history(user_actor_id: str, parent_author_actor_id: str, databased: AsyncIOMotorDatabase) -> None:
     """Adds the based count record to based history database, so it can be sent to mods for cheating report
 
-    :param user_name: user who gave the based and pills
+    :param user_actor_id: user who gave the based and pills
     :param parent_author: user who received the based
     :param AsyncIOMotorClient databasedd: MongoDB Client used to get the collections
 
@@ -152,7 +152,7 @@ async def add_to_based_history(user_name: str, parent_author: str, databased: As
 
     """
     based_history_collection = await get_mongo_collection(collection_name="basedHistory", databased=databased)
-    await based_history_collection.update_one({"to": parent_author, "from": user_name}, {"$inc": {"count": 1}}, upsert=True)
+    await based_history_collection.update_one({"to": parent_author_actor_id, "from": user_actor_id}, {"$inc": {"count": 1}}, upsert=True)
 
 
 async def most_based() -> str:
@@ -164,10 +164,10 @@ async def most_based() -> str:
     return "See the Based Count Leaderboard at https://basedcount.com/leaderboard"
 
 
-async def get_based_count(user_name: str, databased: AsyncIOMotorDatabase, is_me: bool = False) -> str:
+async def get_based_count(user_actor_id: str, databased: AsyncIOMotorDatabase, is_me: bool = False) -> str:
     """Retrieves the Based Count for the given username.
 
-    :param user_name: Username whose based count will be retrieved
+    :param user_actor_id: Username whose based count will be retrieved
     :param databasedd: MongoDB Client used to get the collections
     :param is_me: Flag to indicate if a user is requesting their own based count
 
@@ -175,7 +175,7 @@ async def get_based_count(user_name: str, databased: AsyncIOMotorDatabase, is_me
 
     """
     users_collection = await get_mongo_collection(collection_name="users", databased=databased)
-    profile = await users_collection.find_one({"name": re.compile(rf"^{user_name}$", re.I)})
+    profile = await users_collection.find_one({"name": re.compile(rf"^{user_actor_id}$", re.I)})
 
     if profile is not None:
         user = User.from_data(profile)
@@ -183,7 +183,7 @@ async def get_based_count(user_name: str, databased: AsyncIOMotorDatabase, is_me
         all_based_counts = await user.get_all_accounts_based_count(users_collection)
         combined_based_count = sum(map(lambda x: x[1], all_based_counts))
         combined_pills = await user.combined_formatted_pills(users_collection)
-        combined_rank = await rank_name(combined_based_count, user_name)
+        combined_rank = await rank_name(combined_based_count, user_actor_id)
 
         build_username = f"{profile['name']}'s"
         reply_message = (
@@ -208,10 +208,10 @@ async def get_based_count(user_name: str, databased: AsyncIOMotorDatabase, is_me
     return reply_message
 
 
-async def my_compass(user_name: str, compass: str, databased: AsyncIOMotorDatabase) -> str:
+async def my_compass(user_actor_id: str, compass: str, databased: AsyncIOMotorDatabase) -> str:
     """Parses the Political Compass/Sapply Values url and saves to compass values in database
 
-    :param user_name: User whose compass will be updated
+    :param user_actor_id: User whose compass will be updated
     :param compass: The url given by the user
     :param databasedd: MongoDB Client used to get the collections
 
@@ -219,7 +219,7 @@ async def my_compass(user_name: str, compass: str, databased: AsyncIOMotorDataba
 
     """
     users_collection = await get_mongo_collection(collection_name="users", databased=databased)
-    profile = await find_or_create_user_profile(user_name, users_collection)
+    profile = await find_or_create_user_profile(user_actor_id, users_collection)
     split_url = urlsplit(compass)
     root_domain = split_url.netloc or split_url.path
     url_query = parse_qs(split_url.query)
@@ -231,7 +231,7 @@ async def my_compass(user_name: str, compass: str, databased: AsyncIOMotorDataba
             sv_prog_type = url_query["prog"][0]
             sapply_values = [sv_prog_type, sv_soc_type, sv_eco_type]
             bot_commands_logger.info(f"Sapply Values: {sapply_values}")
-            await users_collection.update_one({"name": user_name}, {"$set": {"sapply": sapply_values}})
+            await users_collection.update_one({"name": user_actor_id}, {"$set": {"sapply": sapply_values}})
             user = User.from_data({**profile, "sapply": sapply_values})
             return f"Your Sapply compass has been updated.\n\n{user.sappy_values_type}"
 
@@ -240,7 +240,7 @@ async def my_compass(user_name: str, compass: str, databased: AsyncIOMotorDataba
             compass_social_axis = url_query["soc"][0]
             compass_values = [compass_economic_axis, compass_social_axis]
             bot_commands_logger.info(f"PCM Values: {profile['compass']}")
-            await users_collection.update_one({"name": user_name}, {"$set": {"compass": compass_values}})
+            await users_collection.update_one({"name": user_actor_id}, {"$set": {"compass": compass_values}})
             user = User.from_data({**profile, "compass": compass_values})
             return f"Your political compass has been updated.\n\n{user.political_compass_type}"
 
@@ -250,10 +250,10 @@ async def my_compass(user_name: str, compass: str, databased: AsyncIOMotorDataba
     )
 
 
-async def remove_pill(user_name: str, pill: str, databased: AsyncIOMotorDatabase) -> str:
+async def remove_pill(user_actor_id: str, pill: str, databased: AsyncIOMotorDatabase) -> str:
     """Removes the pill by adding deleted = True field in the dict obj
 
-    :param user_name: The user whose pill is going to be removed
+    :param user_actor_id: The user whose pill is going to be removed
     :param pill: Name of the pill being removed
     :param databasedd: MongoDB Client used to get the collections
 
@@ -262,26 +262,26 @@ async def remove_pill(user_name: str, pill: str, databased: AsyncIOMotorDatabase
     """
     users_collection = await get_mongo_collection(collection_name="users", databased=databased)
     res = await users_collection.find_one_and_update(
-        {"name": user_name, "pills.name": pill}, {"$set": {"pills.$.deleted": True}}, return_document=ReturnDocument.AFTER
+        {"name": user_actor_id, "pills.name": pill}, {"$set": {"pills.$.deleted": True}}, return_document=ReturnDocument.AFTER
     )
     if not res:
         return "You do not have that pill!"
     else:
-        return f'"{pill}" pill removed. See your pills at https://basedcount.com/u/{user_name}'
+        return f'"{pill}" pill removed. See your pills at https://basedcount.com/u/{user_actor_id}'
 
 
-async def set_subscription(subscribe: bool, user_name: str, databased: AsyncIOMotorDatabase) -> str:
+async def set_subscription(subscribe: bool, user_actor_id: str, databased: AsyncIOMotorDatabase) -> str:
     """Sets the user's unsubscribed bool to True or False
 
     :param subscribe: Boolean indicating whether to set the status to subscribed or unsubscribed
-    :param user_name: The user whose subscription status is being changed
+    :param user_actor_id: The user whose subscription status is being changed
     :param databased: MongoDB Client used to get the collections
 
     :returns: Message that is sent back to the user
 
     """
     users_collection = await get_mongo_collection(collection_name="users", databased=databased)
-    profile = await find_or_create_user_profile(user_name, users_collection)
+    profile = await find_or_create_user_profile(user_actor_id, users_collection)
     res = await users_collection.update_one({"name": profile["name"]}, {"$set": {"unsubscribed": not subscribe}})
     if res:
         return "You have unsubscribed from basedcount_bot." if subscribe else "Thank you for subscribing to basedcount_bot!"

@@ -37,12 +37,12 @@ def exception_wrapper(func: Callable[[AsyncLemmyPy, AsyncIOMotorDatabase], Await
 
     """
 
-    async def wrapper(lemmy_instance: AsyncLemmyPy, mongo_client: AsyncIOMotorDatabase) -> None:
+    async def wrapper(lemmy_instance: AsyncLemmyPy, databased: AsyncIOMotorDatabase) -> None:
         global cool_down_timer
 
         while True:
             try:
-                await func(lemmy_instance, mongo_client)
+                await func(lemmy_instance, databased)
             except ClientResponseError as response_err_exc:
                 main_logger.exception("AsyncLemmyPyExpection", exc_info=True)
                 await send_traceback_to_discord(
@@ -68,14 +68,14 @@ async def bot_commands(command: Comment, command_body_lower: str, databased: Asy
 
     :param command: Lemmy post that triggered the command, could be a message or comment
     :param command_body_lower: The body of that message or command
-    :param databased: MongoDB Client used to get the collections
+    :param databased: MongoDB database used to get the collections
 
     :returns: None
 
     """
 
     if command_body_lower.startswith("/"):
-        main_logger.info(f"Received {type(command).__name__} from {command.user.name}, {command_body_lower!r}")
+        main_logger.info(f"Received {type(command).__name__} from {command.user.actor_id}, {command_body_lower!r}")
 
     if command_body_lower.startswith("/info"):
         async with aiofiles.open("data_dictionaries/bot_replies.yaml", "r") as fp:
@@ -83,31 +83,32 @@ async def bot_commands(command: Comment, command_body_lower: str, databased: Asy
             await command.reply(replies.get("info_message"))
 
     elif command_body_lower.startswith("/mybasedcount"):
-        my_based_count = await get_based_count(user_name=command.user.name, is_me=True, databased=databased)
+        my_based_count = await get_based_count(user_actor_id=command.user.actor_id, is_me=True, databased=databased)
         await command.reply(my_based_count)
 
     elif result := re.match(r"/basedcount\s*(u/)?([A-Za-z0-9_-]+)", command.content, re.IGNORECASE):
+        # TODO: Make this work later. The username is a url which might be very hard to capture.
         user_name = result.group(2)
-        user_based_count = await get_based_count(user_name=user_name, is_me=False, databased=databased)
+        user_based_count = await get_based_count(user_actor_id=user_name, is_me=False, databased=databased)
         await command.reply(user_based_count)
 
     elif command_body_lower.startswith("/mostbased"):
         await command.reply(await most_based())
 
     elif command_body_lower.startswith("/removepill"):
-        response = await remove_pill(user_name=command.user.name, pill=command_body_lower.replace("/removepill ", ""), databased=databased)
+        response = await remove_pill(user_actor_id=command.user.actor_id, pill=command_body_lower.replace("/removepill ", ""), databased=databased)
         await command.reply(response)
 
     elif command_body_lower.startswith("/mycompass"):
-        response = await my_compass(user_name=command.user.name, compass=command_body_lower.replace("/mycompass ", ""), databased=databased)
+        response = await my_compass(user_actor_id=command.user.actor_id, compass=command_body_lower.replace("/mycompass ", ""), databased=databased)
         await command.reply(response)
 
     elif command_body_lower.startswith("/unsubscribe"):
-        response = await set_subscription(subscribe=False, user_name=command.user.name, databased=databased)
+        response = await set_subscription(subscribe=False, user_actor_id=command.user.actor_id, databased=databased)
         await command.reply(response)
 
     elif command_body_lower.startswith("/subscribe"):
-        response = await set_subscription(subscribe=True, user_name=command.user.name, databased=databased)
+        response = await set_subscription(subscribe=True, user_actor_id=command.user.actor_id, databased=databased)
         await command.reply(response)
 
 
@@ -155,8 +156,8 @@ async def is_valid_comment(comment: Comment, parent_info: ParentInfo, databased:
     """Runs checks for self based/pills, unflaired users, and cheating in general
 
     :param comment: Comment which triggered the bot command
-    :param parent_info: The parent comment/submission info.
-    :param databased: MongoDB Client used to get the collections
+    :param parent_info: The parent comment/post info.
+    :param databased: MongoDB database used to get the collections
 
     :returns: True if checks passed and False if checks failed
 
@@ -166,7 +167,6 @@ async def is_valid_comment(comment: Comment, parent_info: ParentInfo, databased:
         main_logger.info("Checks failed, self based or giving basedcount_bot based.")
         return False
 
-    # check for unflaired users, the author_flair_text is empty str or None
     if parent_info.parent_flair is None:
         main_logger.info("(Temp) Giving based to unflaired user.")
         # TODO: Letting Unflaired give based temporarily
@@ -178,7 +178,9 @@ async def is_valid_comment(comment: Comment, parent_info: ParentInfo, databased:
         return False
 
     # fire and forget background tasks
-    task = asyncio.create_task(add_to_based_history(comment.user.actor_id, parent_info.parent_actor_id, databased=databased))
+    task = asyncio.create_task(
+        add_to_based_history(user_actor_id=comment.user.actor_id, parent_author_actor_id=parent_info.parent_actor_id, databased=databased)
+    )
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
     return True
@@ -214,10 +216,10 @@ async def get_parent_info(comment: Comment | Post) -> ParentInfo:
 
 @exception_wrapper
 async def read_comments(lemmy_instance: AsyncLemmyPy, databased: AsyncIOMotorDatabase) -> None:
-    """Checks comments as they come on r/PoliticalCompassMemes and performs actions accordingly.
+    """Checks comments as they come on !pcm@lemmy.basedcount.com and performs actions accordingly.
 
     :param lemmy_instance: The AsyncLemmyPy Instance. Used to make API calls.
-    :param databased: MongoDB Client used to get the collections
+    :param databased: MongoDB database used to get the collections
 
     :returns: Nothing is returned
 
