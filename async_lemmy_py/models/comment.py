@@ -1,4 +1,3 @@
-from __future__ import annotations
 from datetime import datetime
 from typing import Self, Any
 
@@ -55,13 +54,13 @@ class Comment:
             comment_dict=comment_dict,
         )
 
-    async def parent(self) -> Comment | Post:
+    async def parent(self) -> Self | Post:
         parent_ids = self.path.split(".")
         parent_id = int(parent_ids[-2])
         if parent_id == 0 or len(parent_ids) <= 1:
             return await Post.from_id(self.post_id, self.request_builder)
         else:
-            return await Comment.from_id(parent_id, self.request_builder)
+            return await type(self).from_id(parent_id, self.request_builder)
 
     async def reply(self, response: str) -> None:
         payload = {
