@@ -1,5 +1,6 @@
+from __future__ import annotations
 from datetime import datetime
-from typing import Self, Any, Union
+from typing import Self, Any
 
 from async_lemmy_py.models.community import Community
 from async_lemmy_py.models.post import Post
@@ -54,7 +55,7 @@ class Comment:
             comment_dict=comment_dict,
         )
 
-    async def parent(self) -> Union["Comment", Post]:
+    async def parent(self) -> Comment | Post:
         parent_ids = self.path.split(".")
         parent_id = int(parent_ids[-2])
         if parent_id == 0 or len(parent_ids) <= 1:
