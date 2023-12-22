@@ -1,17 +1,17 @@
-from dataclasses import dataclass
+from attrs import define
 from datetime import datetime
 from typing import Optional, Self, Any
 
 from aiohttp import ClientSession
 
 
-@dataclass
+@define
 class UserFlair:
-    name: str
-    display_name: str
-    path: str
     community_actor_id: str
+    display_name: str
     mod_only: bool
+    name: str
+    path: str
 
 
 class User:
