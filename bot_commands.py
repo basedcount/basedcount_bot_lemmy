@@ -89,7 +89,7 @@ async def based_and_pilled(user_actor_id: str, flair_name: str, pill: Optional[d
             f"Rank: {combined_rank}\n\n"
             f"Pills: {combined_pills}\n\n"
             f"Compass: {user.format_compass()}\n\n"
-            f"I am a bot. Reply /info for more info. Please join our [official pcm discord server](https://discord.gg/FyaJdAZjC4)."
+            f"I am a bot. Reply /info for more info."
         )
     elif user.based_count % 5 == 0:
         if rank_up is not None:
@@ -99,7 +99,7 @@ async def based_and_pilled(user_actor_id: str, flair_name: str, pill: Optional[d
                 f"Congratulations, {user_mention}! You have ranked up to {combined_rank}! {rank_up}\n\n"
                 f"Pills: {combined_pills}\n\n"
                 f"Compass: {user.format_compass()}\n\n"
-                f"I am a bot. Reply /info for more info. Please join our [official pcm discord server](https://discord.gg/FyaJdAZjC4)."
+                f"I am a bot. Reply /info for more info."
             )
         # normal reply
         return (
@@ -107,7 +107,7 @@ async def based_and_pilled(user_actor_id: str, flair_name: str, pill: Optional[d
             f"Rank: {combined_rank}\n\n"
             f"Pills: {combined_pills}\n\n"
             f"Compass: {user.format_compass()}\n\n"
-            f"I am a bot. Reply /info for more info. Please join our [official pcm discord server](https://discord.gg/FyaJdAZjC4)."
+            f"I am a bot. Reply /info for more info."
         )
     return None
 
