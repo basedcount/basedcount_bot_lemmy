@@ -50,7 +50,7 @@ class User:
         async with ClientSession() as session:
             params = {"community_actor_id": "https://lemmy.basedcount.com/c/pcm", "user_actor_id": self.actor_id}
             async with session.get("https://lemmy.basedcount.com/flair/api/v1/user", params=params) as resp:
-                if resp.status == 404:
+                if resp.status != 200:
                     return None
                 data = await resp.json()
 
