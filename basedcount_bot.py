@@ -225,7 +225,7 @@ async def read_comments(lemmy_instance: AsyncLemmyPy, databased: AsyncIOMotorDat
 
     """
     main_logger.info(f"Logged into {lemmy_instance.request_builder.username} Account.")
-    async for comment in lemmy_instance.stream_comments(skip_existing=False):  # Comment
+    async for comment in lemmy_instance.stream_comments(skip_existing=True):  # Comment
         # Skips its own comments
         if comment.user.actor_id == "https://lemmy.basedcount.com/u/basedcount_bot":
             continue
