@@ -86,9 +86,8 @@ async def bot_commands(command: Comment, command_body_lower: str, databased: Asy
         my_based_count = await get_based_count(user_actor_id=command.user.actor_id, is_me=True, databased=databased)
         await command.reply(my_based_count)
 
-    elif result := re.match(r"/basedcount\s*(u/)?([A-Za-z0-9_-]+)", command.content, re.IGNORECASE):
-        # TODO: Make this work later. The username is a url which might be very hard to capture.
-        user_name = result.group(2)
+    elif command_body_lower.startswith("/basedcount"):
+        user_name = command_body_lower.split(" ", maxsplit=2)[1]
         user_based_count = await get_based_count(user_actor_id=user_name, is_me=False, databased=databased)
         await command.reply(user_based_count)
 
