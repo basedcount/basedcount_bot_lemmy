@@ -3,15 +3,11 @@ aiohttp
 aioschedule
 cachetools
 colorlog
-google-api-python-client
-google-auth-httplib2
-google-auth-oauthlib
 motor
 motor-types
 mypy
 pip-tools
 pre-commit
-pyright
 python-dotenv
 types-aiofiles
 types-cachetools

@@ -6,33 +6,27 @@
 #
 aiofiles==23.2.1
     # via -r requirements.in
-aiohttp==3.9.1
+aiohttp==3.9.3
     # via -r requirements.in
 aioschedule==0.5.2
     # via -r requirements.in
 aiosignal==1.3.1
     # via aiohttp
-attrs==23.1.0
+attrs==23.2.0
     # via aiohttp
-build==1.0.3
+build==1.1.1
     # via pip-tools
-cachetools==5.3.2
-    # via
-    #   -r requirements.in
-    #   google-auth
-certifi==2023.11.17
-    # via requests
+cachetools==5.3.3
+    # via -r requirements.in
 cfgv==3.4.0
     # via pre-commit
-charset-normalizer==3.3.2
-    # via requests
 click==8.1.7
     # via pip-tools
-colorlog==6.8.0
+colorlog==6.8.2
     # via -r requirements.in
 distlib==0.3.8
     # via virtualenv
-dnspython==2.4.2
+dnspython==2.6.1
     # via pymongo
 filelock==3.13.1
     # via virtualenv
@@ -40,107 +34,55 @@ frozenlist==1.4.1
     # via
     #   aiohttp
     #   aiosignal
-google-api-core==2.15.0
-    # via google-api-python-client
-google-api-python-client==2.111.0
-    # via -r requirements.in
-google-auth==2.25.2
-    # via
-    #   google-api-core
-    #   google-api-python-client
-    #   google-auth-httplib2
-    #   google-auth-oauthlib
-google-auth-httplib2==0.2.0
-    # via
-    #   -r requirements.in
-    #   google-api-python-client
-google-auth-oauthlib==1.2.0
-    # via -r requirements.in
-googleapis-common-protos==1.62.0
-    # via google-api-core
-httplib2==0.22.0
-    # via
-    #   google-api-python-client
-    #   google-auth-httplib2
-identify==2.5.33
+identify==2.5.35
     # via pre-commit
 idna==3.6
-    # via
-    #   requests
-    #   yarl
+    # via yarl
 motor==3.3.2
     # via -r requirements.in
 motor-types==1.0.0b4
     # via -r requirements.in
-multidict==6.0.4
+multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
-mypy==1.8.0
+mypy==1.9.0
     # via -r requirements.in
 mypy-extensions==1.0.0
     # via mypy
 nodeenv==1.8.0
-    # via
-    #   pre-commit
-    #   pyright
-oauthlib==3.2.2
-    # via requests-oauthlib
+    # via pre-commit
 packaging==23.2
     # via build
-pip-tools==7.3.0
+pip-tools==7.4.1
     # via -r requirements.in
-platformdirs==4.1.0
+platformdirs==4.2.0
     # via virtualenv
-pre-commit==3.6.0
+pre-commit==3.6.2
     # via -r requirements.in
-protobuf==4.25.1
-    # via
-    #   google-api-core
-    #   googleapis-common-protos
-pyasn1==0.5.1
-    # via
-    #   pyasn1-modules
-    #   rsa
-pyasn1-modules==0.3.0
-    # via google-auth
-pymongo==4.6.1
+pymongo==4.6.2
     # via
     #   motor
     #   motor-types
-pyparsing==3.1.1
-    # via httplib2
 pyproject-hooks==1.0.0
-    # via build
-pyright==1.1.342
-    # via -r requirements.in
-python-dotenv==1.0.0
+    # via
+    #   build
+    #   pip-tools
+python-dotenv==1.0.1
     # via -r requirements.in
 pyyaml==6.0.1
     # via pre-commit
-requests==2.31.0
-    # via
-    #   google-api-core
-    #   requests-oauthlib
-requests-oauthlib==1.3.1
-    # via google-auth-oauthlib
-rsa==4.9
-    # via google-auth
-types-aiofiles==23.2.0.0
+types-aiofiles==23.2.0.20240106
     # via -r requirements.in
 types-cachetools==5.3.0.7
     # via -r requirements.in
 types-pyyaml==6.0.12.12
     # via -r requirements.in
-typing-extensions==4.9.0
+typing-extensions==4.10.0
     # via
     #   motor-types
     #   mypy
-uritemplate==4.1.1
-    # via google-api-python-client
-urllib3==2.1.0
-    # via requests
-virtualenv==20.25.0
+virtualenv==20.25.1
     # via pre-commit
 wheel==0.42.0
     # via pip-tools
