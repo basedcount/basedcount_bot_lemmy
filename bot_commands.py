@@ -17,7 +17,7 @@ from models.ranks import rank_name, rank_message
 from models.user import User
 from utility_functions import get_mongo_collection, create_logger, actor_id_to_user_mention
 
-bot_commands_logger = create_logger(__name__)
+bot_commands_logger = create_logger(logger_name="basedcount_bot")
 
 
 async def find_or_create_user_profile(user_actor_id: str, users_collection: AsyncIOMotorCollection) -> Mapping[str, Any]:

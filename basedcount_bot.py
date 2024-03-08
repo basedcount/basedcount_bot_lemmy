@@ -279,6 +279,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     cool_down_timer = 0
-    main_logger = create_logger(__name__)
+    main_logger = create_logger(logger_name="basedcount_bot", set_format=True)
     background_tasks: set[asyncio.Task[None]] = set()
     asyncio.run(main())

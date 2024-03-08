@@ -99,16 +99,18 @@ async def get_mongo_collection(collection_name: str, databased: AsyncIOMotorData
     return databased[collection_name]
 
 
-def create_logger(logger_name: str) -> Logger:
+def create_logger(logger_name: str, set_format: bool = False) -> Logger:
     """Creates logger and returns an instance of logging object.
 
     :returns: Logging Object.
 
     """
-    log_format = "%(log_color)s[%(asctime)s] %(levelname)s [%(filename)s.%(funcName)s:%(lineno)d] %(message)s"
-    logger = getLogger(logger_name)
-    for handler in logger.handlers:
-        handler.setFormatter(ColoredFormatter(log_format))
+
+    if set_format:
+        log_format = "%(log_color)s[%(asctime)s] %(levelname)s [%(filename)s.%(funcName)s:%(lineno)d] %(message)s"
+        root_logger = getLogger("root")
+        for handler in root_logger.handlers:
+            handler.setFormatter(ColoredFormatter(log_format, datefmt="%Y-%m-%dT%H:%M:%S%z"))
 
     return getLogger(logger_name)
 
