@@ -6,6 +6,7 @@ from cachetools import Cache
 
 from async_lemmy_py.models.comment import Comment
 from async_lemmy_py.request_builder import RequestBuilder
+from logging import getLogger
 
 
 class AsyncLemmyPy:
@@ -30,7 +31,7 @@ class AsyncLemmyPy:
         :param str password: The password for authentication.
 
         """
-
+        self._async_lemmy_logger = getLogger("async_lemmy")
         self.request_builder = RequestBuilder(base_url, username, password)
 
     async def __aenter__(self) -> Self:
@@ -57,12 +58,13 @@ class AsyncLemmyPy:
         exponential_counter = ExponentialCounter(max_counter=16)
         seen_comments: Cache[int, Comment] = Cache(maxsize=600)
         skip_first = skip_existing
-        found = False
 
         while True:
+            found = False
             comments = await self.request_builder.get(
                 "comment/list", params={"type_": "Local", "sort": "New", "max_depth": 8, "page": 1, "community_id": 2, "community_name": "pcm"}
             )
+            self._async_lemmy_logger.debug("Request made to server")
 
             for raw_comment in reversed(comments.get("comments", [])):
                 comment = Comment.from_dict(comment_view=raw_comment, request_builder=self.request_builder)
@@ -75,9 +77,12 @@ class AsyncLemmyPy:
 
             skip_first = False
             if found:
+                self._async_lemmy_logger.debug("New comment found resetting the counter.")
                 exponential_counter.reset()
             else:
-                await asyncio.sleep(exponential_counter.counter())
+                sleep_time = exponential_counter.counter()
+                self._async_lemmy_logger.debug(f"No new comments, sleeping for {sleep_time} seconds.")
+                await asyncio.sleep(sleep_time)
 
 
 class ExponentialCounter:
