@@ -1,0 +1,14 @@
+[Unit]
+Description=Runs basedcount_bot_lemmy
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/Bots/basedcount_bot_lemmy
+ExecStart=/root/Bots/basedcount_bot_lemmy/basedcount_bot.py
+Restart=always
+RestartSec=15s
+
+[Install]
+WantedBy=multi-user.target
